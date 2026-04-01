@@ -34,6 +34,9 @@ export type OpenAIEditOutletContext = {
   keyTestStatuses: KeyTestStatus[];
   setDraftKeyTestStatus: (keyIndex: number, status: KeyTestStatus) => void;
   resetDraftKeyTestStatuses: (count: number) => void;
+  modelTestStatuses: KeyTestStatus[];
+  setDraftModelTestStatus: (modelIndex: number, status: KeyTestStatus) => void;
+  resetDraftModelTestStatuses: (count: number) => void;
   availableModels: string[];
   handleBack: () => void;
   handleSave: () => Promise<void>;
@@ -159,12 +162,15 @@ export function AiProvidersOpenAIEditLayout() {
   const setDraftTestMessage = useOpenAIEditDraftStore((state) => state.setDraftTestMessage);
   const setDraftKeyTestStatus = useOpenAIEditDraftStore((state) => state.setDraftKeyTestStatus);
   const resetDraftKeyTestStatuses = useOpenAIEditDraftStore((state) => state.resetDraftKeyTestStatuses);
+  const setDraftModelTestStatus = useOpenAIEditDraftStore((state) => state.setDraftModelTestStatus);
+  const resetDraftModelTestStatuses = useOpenAIEditDraftStore((state) => state.resetDraftModelTestStatuses);
 
   const form = draft?.form ?? buildEmptyForm();
   const testModel = draft?.testModel ?? '';
   const testStatus = draft?.testStatus ?? 'idle';
   const testMessage = draft?.testMessage ?? '';
   const keyTestStatuses = draft?.keyTestStatuses ?? [];
+  const modelTestStatuses = draft?.modelTestStatuses ?? [];
 
   const setForm: Dispatch<SetStateAction<OpenAIFormState>> = useCallback(
     (action) => {
@@ -207,6 +213,20 @@ export function AiProvidersOpenAIEditLayout() {
       resetDraftKeyTestStatuses(draftKey, count);
     },
     [draftKey, resetDraftKeyTestStatuses]
+  );
+
+  const handleSetDraftModelTestStatus = useCallback(
+    (modelIndex: number, status: KeyTestStatus) => {
+      setDraftModelTestStatus(draftKey, modelIndex, status);
+    },
+    [draftKey, setDraftModelTestStatus]
+  );
+
+  const handleResetDraftModelTestStatuses = useCallback(
+    (count: number) => {
+      resetDraftModelTestStatuses(draftKey, count);
+    },
+    [draftKey, resetDraftModelTestStatuses]
   );
 
   const initialData = useMemo(() => {
@@ -294,6 +314,7 @@ export function AiProvidersOpenAIEditLayout() {
         testStatus: 'idle',
         testMessage: '',
         keyTestStatuses: [],
+        modelTestStatuses: [],
       });
     } else {
       const emptyForm = buildEmptyForm();
@@ -304,6 +325,7 @@ export function AiProvidersOpenAIEditLayout() {
         testStatus: 'idle',
         testMessage: '',
         keyTestStatuses: [],
+        modelTestStatuses: [],
       });
     }
   }, [draft?.initialized, draftKey, initDraft, initialData, loading]);
@@ -487,6 +509,9 @@ export function AiProvidersOpenAIEditLayout() {
         keyTestStatuses,
         setDraftKeyTestStatus: handleSetDraftKeyTestStatus,
         resetDraftKeyTestStatuses: handleResetDraftKeyTestStatuses,
+        modelTestStatuses,
+        setDraftModelTestStatus: handleSetDraftModelTestStatus,
+        resetDraftModelTestStatuses: handleResetDraftModelTestStatuses,
         availableModels,
         handleBack,
         handleSave,

@@ -972,6 +972,96 @@
   }
 }
 
+// ============================================
+// Model Table Styles - Table Design
+// ============================================
+
+.modelTableShell {
+  overflow-x: auto;
+  border-radius: $radius-md;
+}
+
+.modelTableHeader {
+  display: grid;
+  grid-template-columns: 46px 56px minmax(180px, 1fr) minmax(140px, 0.8fr) 180px;
+  gap: $spacing-sm;
+  min-width: 700px;
+  padding: 10px $spacing-md;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: $radius-md $radius-md 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: none;
+  align-items: center;
+  text-align: center;
+}
+
+.modelTableRow {
+  display: grid;
+  grid-template-columns: 46px 56px minmax(180px, 1fr) minmax(140px, 0.8fr) 180px;
+  gap: $spacing-sm;
+  min-width: 700px;
+  padding: 10px $spacing-md;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  align-items: center;
+
+  &:last-child {
+    border-radius: 0 0 $radius-md $radius-md;
+  }
+
+  &:hover {
+    background: var(--bg-tertiary);
+  }
+}
+
+.modelTableColIndex {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.modelTableColStatus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    display: block;
+  }
+}
+
+.modelTableColName,
+.modelTableColAlias {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modelTableColAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-xs;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.modelTableInput {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  min-height: 38px;
+  text-align: left;
+}
+
 // 暗色主题适配
 :global([data-theme='dark']) {
   .headerBadge {

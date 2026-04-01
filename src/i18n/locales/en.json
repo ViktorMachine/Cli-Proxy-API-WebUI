@@ -455,7 +455,12 @@
     "openai_test_all_hint": "Test connection status for all keys",
     "openai_test_all_success": "All {{count}} keys passed the test",
     "openai_test_all_failed": "All {{count}} keys failed the test",
-    "openai_test_all_partial": "Test completed: {{success}} passed, {{failed}} failed"
+    "openai_test_all_partial": "Test completed: {{success}} passed, {{failed}} failed",
+    "openai_test_all_models_action": "Test All Models",
+    "openai_test_all_models_hint": "Test all models' connectivity with the first available key",
+    "openai_test_all_models_success": "All {{count}} models passed the test",
+    "openai_test_all_models_failed": "All {{count}} models failed the test",
+    "openai_test_all_models_partial": "Model test completed: {{success}} passed, {{failed}} failed"
   },
   "auth_files": {
     "title": "Auth Files Management",

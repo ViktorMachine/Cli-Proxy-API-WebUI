@@ -455,7 +455,12 @@
     "openai_test_all_hint": "测试所有密钥的连接状态",
     "openai_test_all_success": "所有 {{count}} 个密钥测试通过",
     "openai_test_all_failed": "所有 {{count}} 个密钥测试失败",
-    "openai_test_all_partial": "测试完成：{{success}} 个通过，{{failed}} 个失败"
+    "openai_test_all_partial": "测试完成：{{success}} 个通过，{{failed}} 个失败",
+    "openai_test_all_models_action": "测试全部模型",
+    "openai_test_all_models_hint": "使用第一个可用密钥测试所有模型的连接状态",
+    "openai_test_all_models_success": "所有 {{count}} 个模型测试通过",
+    "openai_test_all_models_failed": "所有 {{count}} 个模型测试失败",
+    "openai_test_all_models_partial": "模型测试完成：{{success}} 个通过，{{failed}} 个失败"
   },
   "auth_files": {
     "title": "认证文件管理",

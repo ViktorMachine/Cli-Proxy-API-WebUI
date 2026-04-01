@@ -455,7 +455,12 @@
     "openai_test_all_hint": "Проверить состояние подключения для всех ключей",
     "openai_test_all_success": "Все {{count}} ключей прошли тест",
     "openai_test_all_failed": "Все {{count}} ключей не прошли тест",
-    "openai_test_all_partial": "Тест завершен: {{success}} прошло, {{failed}} не прошло"
+    "openai_test_all_partial": "Тест завершен: {{success}} прошло, {{failed}} не прошло",
+    "openai_test_all_models_action": "Тестировать все модели",
+    "openai_test_all_models_hint": "Проверить состояние подключения всех моделей с первым доступным ключом",
+    "openai_test_all_models_success": "Все {{count}} моделей прошли тест",
+    "openai_test_all_models_failed": "Все {{count}} моделей не прошли тест",
+    "openai_test_all_models_partial": "Тест моделей завершен: {{success}} прошло, {{failed}} не прошло"
   },
   "auth_files": {
     "title": "Управление файлами авторизации",

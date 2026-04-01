@@ -28,6 +28,7 @@ export type OpenAIEditDraft = {
   testStatus: OpenAITestStatus;
   testMessage: string;
   keyTestStatuses: KeyTestStatus[];
+  modelTestStatuses: KeyTestStatus[];
 };
 
 interface OpenAIEditDraftState {
@@ -44,6 +45,8 @@ interface OpenAIEditDraftState {
   setDraftTestMessage: (key: string, action: SetStateAction<string>) => void;
   setDraftKeyTestStatus: (draftKey: string, keyIndex: number, status: KeyTestStatus) => void;
   resetDraftKeyTestStatuses: (draftKey: string, count: number) => void;
+  setDraftModelTestStatus: (draftKey: string, modelIndex: number, status: KeyTestStatus) => void;
+  resetDraftModelTestStatuses: (draftKey: string, count: number) => void;
   clearDraft: (key: string) => void;
 }
 
@@ -68,6 +71,7 @@ const buildEmptyDraft = (): OpenAIEditDraft => ({
   testStatus: 'idle',
   testMessage: '',
   keyTestStatuses: [],
+  modelTestStatuses: [],
 });
 
 export const useOpenAIEditDraftStore = create<OpenAIEditDraftState>((set, get) => ({
@@ -218,6 +222,38 @@ export const useOpenAIEditDraftStore = create<OpenAIEditDraftState>((set, get) =
             ...existing,
             initialized: true,
             keyTestStatuses: Array.from({ length: count }, () => ({ status: 'idle', message: '' })),
+          },
+        },
+      };
+    });
+  },
+
+  setDraftModelTestStatus: (draftKey, modelIndex, status) => {
+    if (!draftKey) return;
+    set((state) => {
+      const existing = state.drafts[draftKey] ?? buildEmptyDraft();
+      const nextStatuses = [...existing.modelTestStatuses];
+      nextStatuses[modelIndex] = status;
+      return {
+        drafts: {
+          ...state.drafts,
+          [draftKey]: { ...existing, initialized: true, modelTestStatuses: nextStatuses },
+        },
+      };
+    });
+  },
+
+  resetDraftModelTestStatuses: (draftKey, count) => {
+    if (!draftKey) return;
+    set((state) => {
+      const existing = state.drafts[draftKey] ?? buildEmptyDraft();
+      return {
+        drafts: {
+          ...state.drafts,
+          [draftKey]: {
+            ...existing,
+            initialized: true,
+            modelTestStatuses: Array.from({ length: count }, () => ({ status: 'idle', message: '' })),
           },
         },
       };

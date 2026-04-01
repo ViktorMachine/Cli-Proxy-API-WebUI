@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { HeaderInputList } from '@/components/ui/HeaderInputList';
 import { Input } from '@/components/ui/Input';
-import { ModelInputList } from '@/components/ui/ModelInputList';
 import { Select } from '@/components/ui/Select';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
 import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
@@ -115,6 +114,9 @@ export function AiProvidersOpenAIEditPage() {
     keyTestStatuses,
     setDraftKeyTestStatus,
     resetDraftKeyTestStatuses,
+    modelTestStatuses,
+    setDraftModelTestStatus,
+    resetDraftModelTestStatuses,
     availableModels,
     handleBack,
     handleSave,
@@ -126,6 +128,7 @@ export function AiProvidersOpenAIEditPage() {
 
   const swipeRef = useEdgeSwipeBack({ onBack: handleBack });
   const [isTestingKeys, setIsTestingKeys] = useState(false);
+  const [isTestingModels, setIsTestingModels] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -356,6 +359,162 @@ export function AiProvidersOpenAIEditPage() {
     resetDraftKeyTestStatuses,
     runSingleKeyTest,
     showNotification,
+  ]);
+
+  // Test a single model by index
+  const runSingleModelTest = useCallback(
+    async (modelIndex: number): Promise<boolean> => {
+      const baseUrl = form.baseUrl.trim();
+      if (!baseUrl) {
+        showNotification(t('notification.openai_test_url_required'), 'error');
+        return false;
+      }
+
+      const endpoint = buildOpenAIChatCompletionsEndpoint(baseUrl);
+      if (!endpoint) {
+        showNotification(t('notification.openai_test_url_required'), 'error');
+        return false;
+      }
+
+      const modelName = form.modelEntries[modelIndex]?.name?.trim();
+      if (!modelName) {
+        setDraftModelTestStatus(modelIndex, { status: 'error', message: t('notification.openai_test_model_required') });
+        return false;
+      }
+
+      // 找到第一个可用的密钥
+      const validKeyEntry = form.apiKeyEntries.find((entry) => entry.apiKey?.trim());
+      if (!validKeyEntry?.apiKey?.trim()) {
+        setDraftModelTestStatus(modelIndex, { status: 'error', message: t('notification.openai_test_key_required') });
+        return false;
+      }
+
+      const customHeaders = buildHeaderObject(form.headers);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...customHeaders,
+      };
+      if (!hasHeader(headers, 'authorization')) {
+        headers.Authorization = `Bearer ${validKeyEntry.apiKey.trim()}`;
+      }
+
+      setDraftModelTestStatus(modelIndex, { status: 'loading', message: '' });
+
+      try {
+        const result = await apiCallApi.request(
+          {
+            method: 'POST',
+            url: endpoint,
+            header: Object.keys(headers).length ? headers : undefined,
+            data: JSON.stringify({
+              model: modelName,
+              messages: [{ role: 'user', content: 'Hi' }],
+              stream: false,
+              max_tokens: 5,
+            }),
+          },
+          { timeout: OPENAI_TEST_TIMEOUT_MS }
+        );
+
+        if (result.statusCode < 200 || result.statusCode >= 300) {
+          throw new Error(getApiCallErrorMessage(result));
+        }
+
+        setDraftModelTestStatus(modelIndex, { status: 'success', message: '' });
+        return true;
+      } catch (err: unknown) {
+        const message = getErrorMessage(err);
+        const errorCode =
+          typeof err === 'object' && err !== null && 'code' in err
+            ? String((err as { code?: string }).code)
+            : '';
+        const isTimeout = errorCode === 'ECONNABORTED' || message.toLowerCase().includes('timeout');
+        const errorMessage = isTimeout
+          ? t('ai_providers.openai_test_timeout', { seconds: OPENAI_TEST_TIMEOUT_MS / 1000 })
+          : message;
+        setDraftModelTestStatus(modelIndex, { status: 'error', message: errorMessage });
+        return false;
+      }
+    },
+    [form.baseUrl, form.modelEntries, form.apiKeyEntries, form.headers, t, setDraftModelTestStatus, showNotification]
+  );
+
+  const testSingleModel = useCallback(
+    async (modelIndex: number): Promise<boolean> => {
+      if (isTestingModels) return false;
+      setIsTestingModels(true);
+      try {
+        return await runSingleModelTest(modelIndex);
+      } finally {
+        setIsTestingModels(false);
+      }
+    },
+    [isTestingModels, runSingleModelTest]
+  );
+
+  // Test all models
+  const testAllModels = useCallback(async () => {
+    if (isTestingModels) return;
+
+    const baseUrl = form.baseUrl.trim();
+    if (!baseUrl) {
+      showNotification(t('notification.openai_test_url_required'), 'error');
+      return;
+    }
+
+    const endpoint = buildOpenAIChatCompletionsEndpoint(baseUrl);
+    if (!endpoint) {
+      showNotification(t('notification.openai_test_url_required'), 'error');
+      return;
+    }
+
+    // 找到第一个可用的密钥
+    const validKeyEntry = form.apiKeyEntries.find((entry) => entry.apiKey?.trim());
+    if (!validKeyEntry?.apiKey?.trim()) {
+      showNotification(t('notification.openai_test_key_required'), 'error');
+      return;
+    }
+
+    const validModelIndexes = form.modelEntries
+      .map((entry, index) => (entry.name?.trim() ? index : -1))
+      .filter((index) => index >= 0);
+
+    if (validModelIndexes.length === 0) {
+      showNotification(t('ai_providers.openai_test_model_required'), 'error');
+      return;
+    }
+
+    setIsTestingModels(true);
+    resetDraftModelTestStatuses(form.modelEntries.length);
+
+    try {
+      const results = await Promise.all(validModelIndexes.map((index) => runSingleModelTest(index)));
+
+      const successCount = results.filter(Boolean).length;
+      const failCount = validModelIndexes.length - successCount;
+
+      if (failCount === 0) {
+        showNotification(t('ai_providers.openai_test_all_models_success', { count: successCount }), 'success');
+      } else if (successCount === 0) {
+        showNotification(t('ai_providers.openai_test_all_models_failed', { count: failCount }), 'error');
+      } else {
+        showNotification(
+          t('ai_providers.openai_test_all_models_partial', { success: successCount, failed: failCount }),
+          'warning'
+        );
+      }
+    } finally {
+      setIsTestingModels(false);
+    }
+  }, [
+    isTestingModels,
+    form.baseUrl,
+    form.apiKeyEntries,
+    form.modelEntries,
+    resetDraftModelTestStatuses,
+    runSingleModelTest,
+    showNotification,
+    t,
   ]);
 
   const openOpenaiModelDiscovery = () => {
@@ -597,7 +756,7 @@ export function AiProvidersOpenAIEditPage() {
                       ...prev,
                       modelEntries: [...prev.modelEntries, { name: '', alias: '' }]
                     }))}
-                    disabled={saving || disableControls || isTestingKeys}
+                    disabled={saving || disableControls || isTestingKeys || isTestingModels}
                   >
                     {t('ai_providers.openai_models_add_btn')}
                   </Button>
@@ -605,9 +764,19 @@ export function AiProvidersOpenAIEditPage() {
                     variant="secondary"
                     size="sm"
                     onClick={openOpenaiModelDiscovery}
-                    disabled={saving || disableControls || isTestingKeys}
+                    disabled={saving || disableControls || isTestingKeys || isTestingModels}
                   >
                     {t('ai_providers.openai_models_fetch_button')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void testAllModels()}
+                    loading={isTestingModels}
+                    disabled={saving || disableControls || isTestingKeys || isTestingModels || !hasTestableKeys || !hasConfiguredModels}
+                    title={t('ai_providers.openai_test_all_models_hint')}
+                  >
+                    {t('ai_providers.openai_test_all_models_action')}
                   </Button>
                 </div>
               </div>
@@ -615,21 +784,102 @@ export function AiProvidersOpenAIEditPage() {
               {/* 提示文本 */}
               <div className={styles.sectionHint}>{t('ai_providers.openai_models_hint')}</div>
 
-              {/* 模型列表 */}
-              <ModelInputList
-                entries={form.modelEntries}
-                onChange={(entries) => setForm((prev) => ({ ...prev, modelEntries: entries }))}
-                namePlaceholder={t('common.model_name_placeholder')}
-                aliasPlaceholder={t('common.model_alias_placeholder')}
-                disabled={saving || disableControls || isTestingKeys}
-                hideAddButton
-                className={styles.modelInputList}
-                rowClassName={styles.modelInputRow}
-                inputClassName={styles.modelInputField}
-                removeButtonClassName={styles.modelRowRemoveButton}
-                removeButtonTitle={t('common.delete')}
-                removeButtonAriaLabel={t('common.delete')}
-              />
+              {/* 模型表格 */}
+              <div className={styles.modelTableShell}>
+                {/* 表头 */}
+                <div className={styles.modelTableHeader}>
+                  <div className={styles.modelTableColIndex}>#</div>
+                  <div className={styles.modelTableColStatus}>{t('common.status')}</div>
+                  <div className={styles.modelTableColName}>{t('common.model_name')}</div>
+                  <div className={styles.modelTableColAlias}>{t('common.model_alias')}</div>
+                  <div className={styles.modelTableColAction}>{t('common.action')}</div>
+                </div>
+
+                {/* 数据行 */}
+                {form.modelEntries.map((entry, index) => {
+                  const modelStatus = modelTestStatuses[index]?.status ?? 'idle';
+                  const canTestModel = Boolean(entry.name?.trim()) && hasTestableKeys;
+
+                  return (
+                    <div key={index} className={styles.modelTableRow}>
+                      {/* 序号 */}
+                      <div className={styles.modelTableColIndex}>{index + 1}</div>
+
+                      {/* 状态指示灯 */}
+                      <div
+                        className={styles.modelTableColStatus}
+                        title={modelTestStatuses[index]?.message || ''}
+                      >
+                        <StatusIcon status={modelStatus} />
+                      </div>
+
+                      {/* 模型名称输入框 */}
+                      <div className={styles.modelTableColName}>
+                        <input
+                          type="text"
+                          value={entry.name}
+                          onChange={(e) => {
+                            const next = form.modelEntries.map((m, i) =>
+                              i === index ? { ...m, name: e.target.value } : m
+                            );
+                            setForm((prev) => ({ ...prev, modelEntries: next }));
+                            setDraftModelTestStatus(index, { status: 'idle', message: '' });
+                          }}
+                          disabled={saving || disableControls || isTestingKeys || isTestingModels}
+                          className={`input ${styles.modelTableInput}`}
+                          placeholder={t('common.model_name_placeholder')}
+                        />
+                      </div>
+
+                      {/* 别名输入框 */}
+                      <div className={styles.modelTableColAlias}>
+                        <input
+                          type="text"
+                          value={entry.alias}
+                          onChange={(e) => {
+                            const next = form.modelEntries.map((m, i) =>
+                              i === index ? { ...m, alias: e.target.value } : m
+                            );
+                            setForm((prev) => ({ ...prev, modelEntries: next }));
+                          }}
+                          disabled={saving || disableControls || isTestingKeys || isTestingModels}
+                          className={`input ${styles.modelTableInput}`}
+                          placeholder={t('common.model_alias_placeholder')}
+                        />
+                      </div>
+
+                      {/* 操作按钮 */}
+                      <div className={styles.modelTableColAction}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => void testSingleModel(index)}
+                          disabled={saving || disableControls || isTestingKeys || isTestingModels || !canTestModel}
+                          loading={modelStatus === 'loading'}
+                        >
+                          {t('ai_providers.openai_test_single_action')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const next = form.modelEntries.filter((_, i) => i !== index);
+                            const nextLength = next.length ? next.length : 1;
+                            setForm((prev) => ({
+                              ...prev,
+                              modelEntries: next.length ? next : [{ name: '', alias: '' }],
+                            }));
+                            resetDraftModelTestStatuses(nextLength);
+                          }}
+                          disabled={saving || disableControls || isTestingKeys || isTestingModels || form.modelEntries.length <= 1}
+                        >
+                          {t('common.delete')}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
               {/* 测试区域 */}
               <div className={styles.modelTestPanel}>
@@ -653,14 +903,14 @@ export function AiProvidersOpenAIEditPage() {
                     }
                     className={styles.openaiTestSelect}
                     ariaLabel={t('ai_providers.openai_test_title')}
-                    disabled={saving || disableControls || isTestingKeys || testStatus === 'loading' || availableModels.length === 0}
+                    disabled={saving || disableControls || isTestingKeys || isTestingModels || testStatus === 'loading' || availableModels.length === 0}
                   />
                   <Button
                     variant={testStatus === 'error' ? 'danger' : 'secondary'}
                     size="sm"
                     onClick={() => void testAllKeys()}
                     loading={testStatus === 'loading'}
-                    disabled={saving || disableControls || isTestingKeys || testStatus === 'loading' || !hasConfiguredModels || !hasTestableKeys}
+                    disabled={saving || disableControls || isTestingKeys || isTestingModels || testStatus === 'loading' || !hasConfiguredModels || !hasTestableKeys}
                     title={t('ai_providers.openai_test_all_hint')}
                     className={styles.modelTestAllButton}
                   >

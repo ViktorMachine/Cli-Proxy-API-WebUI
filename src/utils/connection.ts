@@ -19,6 +19,10 @@ export const computeApiUrl = (base: string): string => {
 
 export const detectApiBaseFromLocation = (): string => {
   try {
+    // 当 VITE_USE_LOCAL 为 false 时，使用外部服务器地址
+    if (import.meta.env.VITE_USE_LOCAL === 'true') {
+      return import.meta.env.VITE_OUTER_SERVER
+    }
     const { protocol, hostname, port } = window.location;
     const normalizedPort = port ? `:${port}` : '';
     return normalizeApiBase(`${protocol}//${hostname}${normalizedPort}`);
