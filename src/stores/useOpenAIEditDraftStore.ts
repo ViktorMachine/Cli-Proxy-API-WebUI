@@ -45,8 +45,11 @@ interface OpenAIEditDraftState {
   setDraftTestMessage: (key: string, action: SetStateAction<string>) => void;
   setDraftKeyTestStatus: (draftKey: string, keyIndex: number, status: KeyTestStatus) => void;
   resetDraftKeyTestStatuses: (draftKey: string, count: number) => void;
+  removeDraftKeyTestStatus: (draftKey: string, keyIndex: number) => void;
   setDraftModelTestStatus: (draftKey: string, modelIndex: number, status: KeyTestStatus) => void;
   resetDraftModelTestStatuses: (draftKey: string, count: number) => void;
+  removeDraftModelTestStatus: (draftKey: string, modelIndex: number) => void;
+  removeFailedDraftModelTestStatuses: (draftKey: string) => number[];
   clearDraft: (key: string) => void;
 }
 
@@ -258,6 +261,53 @@ export const useOpenAIEditDraftStore = create<OpenAIEditDraftState>((set, get) =
         },
       };
     });
+  },
+
+  removeDraftModelTestStatus: (draftKey, modelIndex) => {
+    if (!draftKey) return;
+    set((state) => {
+      const existing = state.drafts[draftKey] ?? buildEmptyDraft();
+      const nextStatuses = existing.modelTestStatuses.filter((_, i) => i !== modelIndex);
+      return {
+        drafts: {
+          ...state.drafts,
+          [draftKey]: { ...existing, initialized: true, modelTestStatuses: nextStatuses },
+        },
+      };
+    });
+  },
+
+  removeDraftKeyTestStatus: (draftKey, keyIndex) => {
+    if (!draftKey) return;
+    set((state) => {
+      const existing = state.drafts[draftKey] ?? buildEmptyDraft();
+      const nextStatuses = existing.keyTestStatuses.filter((_, i) => i !== keyIndex);
+      return {
+        drafts: {
+          ...state.drafts,
+          [draftKey]: { ...existing, initialized: true, keyTestStatuses: nextStatuses },
+        },
+      };
+    });
+  },
+
+  removeFailedDraftModelTestStatuses: (draftKey) => {
+    if (!draftKey) return [];
+    const existing = get().drafts[draftKey];
+    if (!existing) return [];
+    const statuses = existing.modelTestStatuses;
+    const failedIndexes = statuses
+      .map((s, i) => (s.status === 'error' ? i : -1))
+      .filter((i) => i !== -1);
+    if (failedIndexes.length === 0) return [];
+    const nextStatuses = statuses.filter((s) => s.status !== 'error');
+    set({
+      drafts: {
+        ...get().drafts,
+        [draftKey]: { ...existing, initialized: true, modelTestStatuses: nextStatuses },
+      },
+    });
+    return failedIndexes;
   },
 
   clearDraft: (key) => {
