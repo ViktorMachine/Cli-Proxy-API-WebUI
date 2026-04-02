@@ -460,7 +460,9 @@
     "openai_test_all_models_hint": "Проверить состояние подключения всех моделей с первым доступным ключом",
     "openai_test_all_models_success": "Все {{count}} моделей прошли тест",
     "openai_test_all_models_failed": "Все {{count}} моделей не прошли тест",
-    "openai_test_all_models_partial": "Тест моделей завершен: {{success}} прошло, {{failed}} не прошло"
+    "openai_test_all_models_partial": "Тест моделей завершен: {{success}} прошло, {{failed}} не прошло",
+    "openai_clear_failed_models_action": "Очистить неудачные модели",
+    "openai_clear_failed_models_hint": "Удалить все модели с ошибками из списка"
   },
   "auth_files": {
     "title": "Управление файлами авторизации",

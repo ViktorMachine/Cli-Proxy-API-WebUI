@@ -114,9 +114,12 @@ export function AiProvidersOpenAIEditPage() {
     keyTestStatuses,
     setDraftKeyTestStatus,
     resetDraftKeyTestStatuses,
+    removeDraftKeyTestStatus,
     modelTestStatuses,
     setDraftModelTestStatus,
     resetDraftModelTestStatuses,
+    removeDraftModelTestStatus,
+    removeFailedDraftModelTestStatuses,
     availableModels,
     handleBack,
     handleSave,
@@ -539,12 +542,11 @@ export function AiProvidersOpenAIEditPage() {
 
     const removeEntry = (idx: number) => {
       const next = list.filter((_, i) => i !== idx);
-      const nextLength = next.length ? next.length : 1;
       setForm((prev) => ({
         ...prev,
         apiKeyEntries: next.length ? next : [buildApiKeyEntry()],
       }));
-      resetDraftKeyTestStatuses(nextLength);
+      removeDraftKeyTestStatus(idx);
       setTestStatus('idle');
       setTestMessage('');
     };
@@ -778,6 +780,27 @@ export function AiProvidersOpenAIEditPage() {
                   >
                     {t('ai_providers.openai_test_all_models_action')}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const failedIndexes = removeFailedDraftModelTestStatuses();
+                      if (failedIndexes.length === 0) return;
+                      // 从后往前删除，避免索引偏移问题
+                      const sortedIndexes = [...failedIndexes].sort((a, b) => b - a);
+                      setForm((prev) => {
+                        const next = prev.modelEntries.filter((_, i) => !sortedIndexes.includes(i));
+                        return {
+                          ...prev,
+                          modelEntries: next.length ? next : [{ name: '', alias: '' }],
+                        };
+                      });
+                    }}
+                    disabled={saving || disableControls || isTestingKeys || isTestingModels || !modelTestStatuses.some((s) => s.status === 'error')}
+                    title={t('ai_providers.openai_clear_failed_models_hint')}
+                  >
+                    {t('ai_providers.openai_clear_failed_models_action')}
+                  </Button>
                 </div>
               </div>
 
@@ -864,12 +887,11 @@ export function AiProvidersOpenAIEditPage() {
                           size="sm"
                           onClick={() => {
                             const next = form.modelEntries.filter((_, i) => i !== index);
-                            const nextLength = next.length ? next.length : 1;
                             setForm((prev) => ({
                               ...prev,
                               modelEntries: next.length ? next : [{ name: '', alias: '' }],
                             }));
-                            resetDraftModelTestStatuses(nextLength);
+                            removeDraftModelTestStatus(index);
                           }}
                           disabled={saving || disableControls || isTestingKeys || isTestingModels || form.modelEntries.length <= 1}
                         >

@@ -460,7 +460,9 @@
     "openai_test_all_models_hint": "Test all models' connectivity with the first available key",
     "openai_test_all_models_success": "All {{count}} models passed the test",
     "openai_test_all_models_failed": "All {{count}} models failed the test",
-    "openai_test_all_models_partial": "Model test completed: {{success}} passed, {{failed}} failed"
+    "openai_test_all_models_partial": "Model test completed: {{success}} passed, {{failed}} failed",
+    "openai_clear_failed_models_action": "Clear Failed Models",
+    "openai_clear_failed_models_hint": "Remove all model entries with error status from the list"
   },
   "auth_files": {
     "title": "Auth Files Management",
