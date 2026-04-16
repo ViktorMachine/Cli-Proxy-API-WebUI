@@ -16,6 +16,11 @@
   height: 24px;
 }
 
+.cardExtraButtons {
+  display: flex;
+  gap: 8px;
+}
+
 .pageTitle {
   font-size: 28px;
   font-weight: 700;
@@ -1060,6 +1065,37 @@
   font-size: 14px;
   min-height: 38px;
   text-align: left;
+}
+
+.modelAliasInputWrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+
+  input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.modelAliasFillButton {
+  flex-shrink: 0;
+  padding: 6px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+
+  &:hover:not(:disabled) {
+    color: var(--primary-color);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 }
 
 // 暗色主题适配

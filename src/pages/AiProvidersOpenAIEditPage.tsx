@@ -856,19 +856,41 @@ export function AiProvidersOpenAIEditPage() {
 
                       {/* 别名输入框 */}
                       <div className={styles.modelTableColAlias}>
-                        <input
-                          type="text"
-                          value={entry.alias}
-                          onChange={(e) => {
-                            const next = form.modelEntries.map((m, i) =>
-                              i === index ? { ...m, alias: e.target.value } : m
-                            );
-                            setForm((prev) => ({ ...prev, modelEntries: next }));
-                          }}
-                          disabled={saving || disableControls || isTestingKeys || isTestingModels}
-                          className={`input ${styles.modelTableInput}`}
-                          placeholder={t('common.model_alias_placeholder')}
-                        />
+                        <div className={styles.modelAliasInputWrapper}>
+                          <input
+                            type="text"
+                            value={entry.alias}
+                            onChange={(e) => {
+                              const next = form.modelEntries.map((m, i) =>
+                                i === index ? { ...m, alias: e.target.value } : m
+                              );
+                              setForm((prev) => ({ ...prev, modelEntries: next }));
+                            }}
+                            disabled={saving || disableControls || isTestingKeys || isTestingModels}
+                            className={`input ${styles.modelTableInput}`}
+                            placeholder={t('common.model_alias_placeholder')}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const loweredName = entry.name.trim().toLowerCase();
+                              if (loweredName) {
+                                const next = form.modelEntries.map((m, i) =>
+                                  i === index ? { ...m, alias: loweredName } : m
+                                );
+                                setForm((prev) => ({ ...prev, modelEntries: next }));
+                              }
+                            }}
+                            disabled={saving || disableControls || isTestingKeys || isTestingModels || !entry.name.trim()}
+                            title={t('common.fill_alias_from_name')}
+                            className={styles.modelAliasFillButton}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                              <path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </Button>
+                        </div>
                       </div>
 
                       {/* 操作按钮 */}

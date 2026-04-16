@@ -36,6 +36,8 @@
     "proxy_url": "Proxy",
     "priority": "Priority",
     "alias": "Alias",
+    "model_name": "Model Name",
+    "model_alias": "Model Alias",
     "failure": "Failure",
     "unknown_error": "Unknown error",
     "quota_update_required": "Please update the CPA version or check for updates",
@@ -52,6 +54,7 @@
     "custom_headers_value_placeholder": "Header value",
     "model_name_placeholder": "Model name, e.g. claude-3-5-sonnet-20241022",
     "model_alias_placeholder": "Model alias (optional)",
+    "fill_alias_from_name": "Convert model name to lowercase and fill as alias",
     "invalid_provider_index": "Invalid provider index.",
     "unsaved_changes_title": "Unsaved changes",
     "unsaved_changes_message": "You have unsaved changes. Leaving now will discard them. Do you want to leave?"
@@ -462,7 +465,17 @@
     "openai_test_all_models_failed": "All {{count}} models failed the test",
     "openai_test_all_models_partial": "Model test completed: {{success}} passed, {{failed}} failed",
     "openai_clear_failed_models_action": "Clear Failed Models",
-    "openai_clear_failed_models_hint": "Remove all model entries with error status from the list"
+    "openai_clear_failed_models_hint": "Remove all model entries with error status from the list",
+    "openai_verify_models_action": "Verify Models",
+    "openai_verify_models_hint": "Fetch model list and test connectivity, keep only available models",
+    "openai_verify_all_action": "Verify All",
+    "openai_verify_all_hint": "Verify model connectivity for all providers",
+    "openai_verify_running": "Verifying models...",
+    "openai_verify_success": "Verified {{count}} models, {{kept}} available",
+    "openai_verify_no_models": "No available models found",
+    "openai_verify_error": "Verification failed: {{message}}",
+    "openai_verify_all_progress": "Verifying provider {{current}}/{{total}}...",
+    "openai_verify_all_complete": "Completed verification for {{count}} providers"
   },
   "auth_files": {
     "title": "Auth Files Management",

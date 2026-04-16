@@ -36,6 +36,8 @@
     "proxy_url": "Прокси",
     "priority": "Приоритет",
     "alias": "Псевдоним",
+    "model_name": "Имя модели",
+    "model_alias": "Псевдоним модели",
     "failure": "Сбой",
     "unknown_error": "Неизвестная ошибка",
     "quota_update_required": "Пожалуйста, обновите CPA или проверьте наличие обновлений",
@@ -52,6 +54,7 @@
     "custom_headers_value_placeholder": "Значение заголовка",
     "model_name_placeholder": "Имя модели, напр. claude-3-5-sonnet-20241022",
     "model_alias_placeholder": "Псевдоним модели (необязательно)",
+    "fill_alias_from_name": "Преобразовать имя модели в нижний регистр и заполнить как псевдоним",
     "invalid_provider_index": "Неверный индекс провайдера.",
     "unsaved_changes_title": "Несохранённые изменения",
     "unsaved_changes_message": "У вас есть несохранённые изменения. Если вы уйдёте, они будут потеряны. Выйти?"
@@ -462,7 +465,17 @@
     "openai_test_all_models_failed": "Все {{count}} моделей не прошли тест",
     "openai_test_all_models_partial": "Тест моделей завершен: {{success}} прошло, {{failed}} не прошло",
     "openai_clear_failed_models_action": "Очистить неудачные модели",
-    "openai_clear_failed_models_hint": "Удалить все модели с ошибками из списка"
+    "openai_clear_failed_models_hint": "Удалить все модели с ошибками из списка",
+    "openai_verify_models_action": "Проверить модели",
+    "openai_verify_models_hint": "Получить список моделей и проверить подключение, оставить только доступные",
+    "openai_verify_all_action": "Проверить все",
+    "openai_verify_all_hint": "Проверить подключение моделей для всех провайдеров",
+    "openai_verify_running": "Проверка моделей...",
+    "openai_verify_success": "Проверено {{count}} моделей, {{kept}} доступно",
+    "openai_verify_no_models": "Доступных моделей не найдено",
+    "openai_verify_error": "Ошибка проверки: {{message}}",
+    "openai_verify_all_progress": "Проверка провайдера {{current}}/{{total}}...",
+    "openai_verify_all_complete": "Проверка завершена для {{count}} провайдеров"
   },
   "auth_files": {
     "title": "Управление файлами авторизации",

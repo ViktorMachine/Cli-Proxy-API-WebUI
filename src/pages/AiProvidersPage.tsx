@@ -11,15 +11,20 @@ import {
   ProviderNav,
   useProviderStats,
 } from '@/components/providers';
+import type { VerifyStatus } from '@/components/providers/OpenAISection/OpenAISection';
 import {
+  buildOpenAIChatCompletionsEndpoint,
   withDisableAllModelsRule,
   withoutDisableAllModelsRule,
 } from '@/components/providers/utils';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
-import { ampcodeApi, providersApi } from '@/services/api';
+import { apiCallApi, ampcodeApi, modelsApi, providersApi } from '@/services/api';
 import { useAuthStore, useConfigStore, useNotificationStore, useThemeStore } from '@/stores';
-import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
+import type { GeminiKeyConfig, ModelAlias, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import styles from './AiProvidersPage.module.scss';
+
+const OPENAI_TEST_TIMEOUT_MS = 30000;
+const VERIFY_CONCURRENCY = 3;
 
 export function AiProvidersPage() {
   const { t } = useTranslation();
@@ -55,6 +60,8 @@ export function AiProvidersPage() {
   );
 
   const [configSwitchingKey, setConfigSwitchingKey] = useState<string | null>(null);
+  const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>({});
+  const [verifyAllLoading, setVerifyAllLoading] = useState(false);
 
   const disableControls = connectionStatus !== 'connected';
   const isSwitching = Boolean(configSwitchingKey);
@@ -352,6 +359,131 @@ export function AiProvidersPage() {
     });
   };
 
+  const buildHeadersForProvider = (provider: OpenAIProviderConfig): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...provider.headers,
+    };
+    const firstKey = provider.apiKeyEntries?.[0]?.apiKey;
+    if (firstKey && !Object.keys(headers).some((k) => k.toLowerCase() === 'authorization')) {
+      headers.Authorization = `Bearer ${firstKey}`;
+    }
+    return headers;
+  };
+
+  const testModelConnectivity = async (
+    provider: OpenAIProviderConfig,
+    modelName: string
+  ): Promise<boolean> => {
+    const endpoint = buildOpenAIChatCompletionsEndpoint(provider.baseUrl);
+    if (!endpoint) return false;
+
+    const headers = buildHeadersForProvider(provider);
+
+    try {
+      const result = await apiCallApi.request(
+        {
+          method: 'POST',
+          url: endpoint,
+          header: headers,
+          data: JSON.stringify({
+            model: modelName,
+            messages: [{ role: 'user', content: 'Hi' }],
+            stream: false,
+            max_tokens: 5,
+          }),
+        },
+        { timeout: OPENAI_TEST_TIMEOUT_MS }
+      );
+      return result.statusCode === 200;
+    } catch {
+      return false;
+    }
+  };
+
+  const verifyOpenaiModels = async (index: number) => {
+    const provider = openaiProviders[index];
+    if (!provider) return;
+
+    setVerifyStatus((prev) => ({ ...prev, [index]: 'loading' }));
+
+    try {
+      // 获取模型列表
+      const firstKey = provider.apiKeyEntries?.[0]?.apiKey;
+      const models = await modelsApi.fetchModelsViaApiCall(
+        provider.baseUrl,
+        firstKey,
+        provider.headers || {}
+      );
+
+      if (!models.length) {
+        showNotification(t('ai_providers.openai_verify_no_models'), 'warning');
+        setVerifyStatus((prev) => ({ ...prev, [index]: 'error' }));
+        return;
+      }
+
+      // 并发检测模型连通性
+      const availableModels: ModelAlias[] = [];
+      const chunks: ModelAlias[][] = [];
+      for (let i = 0; i < models.length; i += VERIFY_CONCURRENCY) {
+        chunks.push(models.slice(i, i + VERIFY_CONCURRENCY));
+      }
+
+      for (const chunk of chunks) {
+        const results = await Promise.all(
+          chunk.map(async (model) => {
+            const isAvailable = await testModelConnectivity(provider, model.name);
+            return isAvailable ? model : null;
+          })
+        );
+        results.forEach((model) => {
+          if (model) availableModels.push(model);
+        });
+      }
+
+      // 更新 Provider
+      const updated: OpenAIProviderConfig = { ...provider, models: availableModels };
+      await providersApi.updateOpenAIProvider(index, updated);
+
+      // 更新本地状态
+      setOpenaiProviders((prev) => prev.map((p, i) => (i === index ? updated : p)));
+      updateConfigValue('openai-compatibility', openaiProviders.map((p, i) => (i === index ? updated : p)));
+      clearCache('openai-compatibility');
+
+      showNotification(
+        t('ai_providers.openai_verify_success', {
+          count: models.length,
+          kept: availableModels.length,
+        }),
+        'success'
+      );
+      setVerifyStatus((prev) => ({ ...prev, [index]: 'success' }));
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      showNotification(
+        t('ai_providers.openai_verify_error', { message }),
+        'error'
+      );
+      setVerifyStatus((prev) => ({ ...prev, [index]: 'error' }));
+    }
+  };
+
+  const verifyAllOpenaiModels = async () => {
+    if (!openaiProviders.length) return;
+
+    setVerifyAllLoading(true);
+
+    for (let i = 0; i < openaiProviders.length; i += 1) {
+      await verifyOpenaiModels(i);
+    }
+
+    showNotification(
+      t('ai_providers.openai_verify_all_complete', { count: openaiProviders.length }),
+      'success'
+    );
+    setVerifyAllLoading(false);
+  };
+
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>{t('ai_providers.title')}</h1>
@@ -437,9 +569,13 @@ export function AiProvidersPage() {
             disableControls={disableControls}
             isSwitching={isSwitching}
             resolvedTheme={resolvedTheme}
+            verifyStatus={verifyStatus}
+            verifyAllLoading={verifyAllLoading}
             onAdd={() => openEditor('/ai-providers/openai/new')}
             onEdit={(index) => openEditor(`/ai-providers/openai/${index}`)}
             onDelete={deleteOpenai}
+            onVerifyModels={(index) => void verifyOpenaiModels(index)}
+            onVerifyAll={() => void verifyAllOpenaiModels()}
           />
         </div>
       </div>

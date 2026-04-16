@@ -18,6 +18,10 @@ import { ProviderList } from '../ProviderList';
 import { ProviderStatusBar } from '../ProviderStatusBar';
 import { getOpenAIProviderStats, getStatsBySource } from '../utils';
 
+export interface VerifyStatus {
+  [key: number]: 'idle' | 'loading' | 'success' | 'error';
+}
+
 interface OpenAISectionProps {
   configs: OpenAIProviderConfig[];
   keyStats: KeyStats;
@@ -26,9 +30,13 @@ interface OpenAISectionProps {
   disableControls: boolean;
   isSwitching: boolean;
   resolvedTheme: string;
+  verifyStatus?: VerifyStatus;
+  verifyAllLoading?: boolean;
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onVerifyModels: (index: number) => void;
+  onVerifyAll: () => void;
 }
 
 export function OpenAISection({
@@ -39,12 +47,16 @@ export function OpenAISection({
   disableControls,
   isSwitching,
   resolvedTheme,
+  verifyStatus,
+  verifyAllLoading,
   onAdd,
   onEdit,
   onDelete,
+  onVerifyModels,
+  onVerifyAll,
 }: OpenAISectionProps) {
   const { t } = useTranslation();
-  const actionsDisabled = disableControls || loading || isSwitching;
+  const actionsDisabled = disableControls || loading || isSwitching || verifyAllLoading;
 
   const statusBarCache = useMemo(() => {
     const cache = new Map<string, ReturnType<typeof calculateStatusBarData>>();
@@ -79,9 +91,20 @@ export function OpenAISection({
           </span>
         }
         extra={
-          <Button size="sm" onClick={onAdd} disabled={actionsDisabled}>
-            {t('ai_providers.openai_add_button')}
-          </Button>
+          <div className={styles.cardExtraButtons}>
+            <Button
+              size="sm"
+              onClick={onVerifyAll}
+              disabled={actionsDisabled}
+              loading={verifyAllLoading}
+              title={t('ai_providers.openai_verify_all_hint')}
+            >
+              {t('ai_providers.openai_verify_all_action')}
+            </Button>
+            <Button size="sm" onClick={onAdd} disabled={actionsDisabled}>
+              {t('ai_providers.openai_add_button')}
+            </Button>
+          </div>
         }
       >
         <ProviderList<OpenAIProviderConfig>
@@ -93,6 +116,21 @@ export function OpenAISection({
           onEdit={onEdit}
           onDelete={onDelete}
           actionsDisabled={actionsDisabled}
+          renderExtraActions={(_, index) => {
+            const status = verifyStatus?.[index] || 'idle';
+            return (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onVerifyModels(index)}
+                disabled={actionsDisabled}
+                loading={status === 'loading'}
+                title={t('ai_providers.openai_verify_models_hint')}
+              >
+                {t('ai_providers.openai_verify_models_action')}
+              </Button>
+            );
+          }}
           renderContent={(item) => {
             const stats = getOpenAIProviderStats(item.apiKeyEntries, keyStats, item.prefix);
             const headerEntries = Object.entries(item.headers || {});
