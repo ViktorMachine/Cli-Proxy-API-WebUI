@@ -62,6 +62,9 @@ export function AiProvidersPage() {
   const [configSwitchingKey, setConfigSwitchingKey] = useState<string | null>(null);
   const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>({});
   const [verifyAllLoading, setVerifyAllLoading] = useState(false);
+  const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importData, setImportData] = useState<any>(null);
 
   const disableControls = connectionStatus !== 'connected';
   const isSwitching = Boolean(configSwitchingKey);
@@ -484,9 +487,225 @@ export function AiProvidersPage() {
     setVerifyAllLoading(false);
   };
 
+  // 导出配置
+  const exportConfig = () => {
+    try {
+      const exportData = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        providers: {
+          gemini: geminiKeys,
+          codex: codexConfigs,
+          claude: claudeConfigs,
+          vertex: vertexConfigs,
+          openai: openaiProviders,
+          ampcode: config?.ampcode,
+        },
+      };
+
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ai-providers-config-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showNotification(t('ai_providers.export_success'), 'success');
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      showNotification(`${t('ai_providers.export_failed')}: ${message}`, 'error');
+    }
+  };
+
+  // 处理导入文件
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+
+        // 验证数据格式
+        if (!data.providers) {
+          showNotification(t('ai_providers.import_invalid_format'), 'error');
+          return;
+        }
+
+        // 检查是否有有效数据
+        const hasData =
+          (data.providers.gemini?.length > 0) ||
+          (data.providers.codex?.length > 0) ||
+          (data.providers.claude?.length > 0) ||
+          (data.providers.vertex?.length > 0) ||
+          (data.providers.openai?.length > 0) ||
+          (data.providers.ampcode);
+
+        if (!hasData) {
+          showNotification(t('ai_providers.import_no_data'), 'error');
+          return;
+        }
+
+        setImportData(data);
+        setShowImportDialog(true);
+      } catch (err: unknown) {
+        const message = getErrorMessage(err);
+        showNotification(`${t('ai_providers.import_invalid_format')}: ${message}`, 'error');
+      }
+    };
+    reader.readAsText(file);
+
+    // 重置input值，允许重复选择同一文件
+    event.target.value = '';
+  };
+
+  // 执行导入
+  const executeImport = async () => {
+    if (!importData) return;
+
+    try {
+      const providers = importData.providers;
+      let successCount = 0;
+      let totalCount = 0;
+
+      // 导入 Gemini 配置
+      if (providers.gemini?.length > 0) {
+        totalCount++;
+        const newGemini = importMode === 'merge'
+          ? [...geminiKeys, ...providers.gemini]
+          : providers.gemini;
+
+        await providersApi.saveGeminiKeys(newGemini);
+        setGeminiKeys(newGemini);
+        updateConfigValue('gemini-api-key', newGemini);
+        clearCache('gemini-api-key');
+        successCount++;
+      }
+
+      // 导入 Codex 配置
+      if (providers.codex?.length > 0) {
+        totalCount++;
+        const newCodex = importMode === 'merge'
+          ? [...codexConfigs, ...providers.codex]
+          : providers.codex;
+
+        await providersApi.saveCodexConfigs(newCodex);
+        setCodexConfigs(newCodex);
+        updateConfigValue('codex-api-key', newCodex);
+        clearCache('codex-api-key');
+        successCount++;
+      }
+
+      // 导入 Claude 配置
+      if (providers.claude?.length > 0) {
+        totalCount++;
+        const newClaude = importMode === 'merge'
+          ? [...claudeConfigs, ...providers.claude]
+          : providers.claude;
+
+        await providersApi.saveClaudeConfigs(newClaude);
+        setClaudeConfigs(newClaude);
+        updateConfigValue('claude-api-key', newClaude);
+        clearCache('claude-api-key');
+        successCount++;
+      }
+
+      // 导入 Vertex 配置
+      if (providers.vertex?.length > 0) {
+        totalCount++;
+        const newVertex = importMode === 'merge'
+          ? [...vertexConfigs, ...providers.vertex]
+          : providers.vertex;
+
+        await providersApi.saveVertexConfigs(newVertex);
+        setVertexConfigs(newVertex);
+        updateConfigValue('vertex-api-key', newVertex);
+        clearCache('vertex-api-key');
+        successCount++;
+      }
+
+      // 导入 OpenAI 配置
+      if (providers.openai?.length > 0) {
+        totalCount++;
+        const newOpenai = importMode === 'merge'
+          ? [...openaiProviders, ...providers.openai]
+          : providers.openai;
+
+        // 批量保存 OpenAI 提供商
+        for (let i = 0; i < newOpenai.length; i++) {
+          const provider = newOpenai[i];
+          if (importMode === 'replace' || i >= openaiProviders.length) {
+            await providersApi.saveOpenAIProvider(provider);
+          }
+        }
+
+        setOpenaiProviders(newOpenai);
+        updateConfigValue('openai-compatibility', newOpenai);
+        clearCache('openai-compatibility');
+        successCount++;
+      }
+
+      // 导入 Ampcode 配置
+      if (providers.ampcode) {
+        totalCount++;
+        await ampcodeApi.saveAmpcode(providers.ampcode);
+        updateConfigValue('ampcode', providers.ampcode);
+        clearCache('ampcode');
+        successCount++;
+      }
+
+      setShowImportDialog(false);
+      setImportData(null);
+
+      if (successCount === totalCount) {
+        showNotification(
+          t('ai_providers.import_success', { total: totalCount }),
+          'success'
+        );
+      } else {
+        showNotification(
+          t('ai_providers.import_partial', { success: successCount, total: totalCount }),
+          'warning'
+        );
+      }
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      showNotification(`${t('ai_providers.import_failed')}: ${message}`, 'error');
+    }
+  };
+
   return (
     <div className={styles.container}>
-      <h1 className={styles.pageTitle}>{t('ai_providers.title')}</h1>
+      <div className={styles.header}>
+        <h1 className={styles.pageTitle}>{t('ai_providers.title')}</h1>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.exportButton}
+            onClick={exportConfig}
+            disabled={disableControls}
+            title={t('ai_providers.export_hint')}
+          >
+            {t('ai_providers.export_button')}
+          </button>
+          <label className={styles.importButton}>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImportFile}
+              disabled={disableControls}
+              style={{ display: 'none' }}
+            />
+            <span>{t('ai_providers.import_button')}</span>
+          </label>
+        </div>
+      </div>
       <div className={styles.content}>
         {error && <div className="error-box">{error}</div>}
 
@@ -579,6 +798,86 @@ export function AiProvidersPage() {
           />
         </div>
       </div>
+
+      {/* 导入确认对话框 */}
+      {showImportDialog && importData && (
+        <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <h2>{t('ai_providers.import_confirm_title')}</h2>
+            <p>{t('ai_providers.import_confirm_message')}</p>
+
+            <div className={styles.importPreview}>
+              <h3>{t('ai_providers.import_preview_title')}</h3>
+              <ul>
+                {importData.providers.gemini?.length > 0 && (
+                  <li>{t('ai_providers.import_preview_gemini', { count: importData.providers.gemini.length })}</li>
+                )}
+                {importData.providers.codex?.length > 0 && (
+                  <li>{t('ai_providers.import_preview_codex', { count: importData.providers.codex.length })}</li>
+                )}
+                {importData.providers.claude?.length > 0 && (
+                  <li>{t('ai_providers.import_preview_claude', { count: importData.providers.claude.length })}</li>
+                )}
+                {importData.providers.vertex?.length > 0 && (
+                  <li>{t('ai_providers.import_preview_vertex', { count: importData.providers.vertex.length })}</li>
+                )}
+                {importData.providers.openai?.length > 0 && (
+                  <li>{t('ai_providers.import_preview_openai', { count: importData.providers.openai.length })}</li>
+                )}
+                {importData.providers.ampcode && (
+                  <li>{t('ai_providers.import_preview_ampcode', { status: t('common.yes') })}</li>
+                )}
+              </ul>
+            </div>
+
+            <div className={styles.importMode}>
+              <label>
+                <input
+                  type="radio"
+                  value="merge"
+                  checked={importMode === 'merge'}
+                  onChange={(e) => setImportMode(e.target.value as 'merge' | 'replace')}
+                />
+                <div>
+                  <strong>{t('ai_providers.import_mode_merge')}</strong>
+                  <p>{t('ai_providers.import_mode_merge_desc')}</p>
+                </div>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  value="replace"
+                  checked={importMode === 'replace'}
+                  onChange={(e) => setImportMode(e.target.value as 'merge' | 'replace')}
+                />
+                <div>
+                  <strong>{t('ai_providers.import_mode_replace')}</strong>
+                  <p>{t('ai_providers.import_mode_replace_desc')}</p>
+                </div>
+              </label>
+            </div>
+
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowImportDialog(false);
+                  setImportData(null);
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className={styles.confirmButton}
+                onClick={executeImport}
+              >
+                {t('common.confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ProviderNav />
     </div>
