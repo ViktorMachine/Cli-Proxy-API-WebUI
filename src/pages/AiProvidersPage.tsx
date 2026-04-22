@@ -638,12 +638,7 @@ export function AiProvidersPage() {
           : providers.openai;
 
         // 批量保存 OpenAI 提供商
-        for (let i = 0; i < newOpenai.length; i++) {
-          const provider = newOpenai[i];
-          if (importMode === 'replace' || i >= openaiProviders.length) {
-            await providersApi.saveOpenAIProvider(provider);
-          }
-        }
+        await providersApi.saveOpenAIProviders(newOpenai);
 
         setOpenaiProviders(newOpenai);
         updateConfigValue('openai-compatibility', newOpenai);
@@ -654,8 +649,26 @@ export function AiProvidersPage() {
       // 导入 Ampcode 配置
       if (providers.ampcode) {
         totalCount++;
-        await ampcodeApi.saveAmpcode(providers.ampcode);
-        updateConfigValue('ampcode', providers.ampcode);
+        const ampcodeConfig = providers.ampcode;
+
+        // 分别更新 Ampcode 的各个配置项
+        if (ampcodeConfig.upstreamUrl) {
+          await ampcodeApi.updateUpstreamUrl(ampcodeConfig.upstreamUrl);
+        }
+        if (ampcodeConfig.upstreamApiKey) {
+          await ampcodeApi.updateUpstreamApiKey(ampcodeConfig.upstreamApiKey);
+        }
+        if (ampcodeConfig.upstreamApiKeys?.length) {
+          await ampcodeApi.saveUpstreamApiKeys(ampcodeConfig.upstreamApiKeys);
+        }
+        if (ampcodeConfig.modelMappings?.length) {
+          await ampcodeApi.saveModelMappings(ampcodeConfig.modelMappings);
+        }
+        if (ampcodeConfig.forceModelMappings !== undefined) {
+          await ampcodeApi.updateForceModelMappings(ampcodeConfig.forceModelMappings);
+        }
+
+        updateConfigValue('ampcode', ampcodeConfig);
         clearCache('ampcode');
         successCount++;
       }
